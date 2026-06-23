@@ -1,0 +1,50 @@
+<launch>
+  <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
+  <arg name="x_pos" default="0.0"/>
+  <arg name="y_pos" default="0.0"/>
+  <arg name="z_pos" default="0.0"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+      <param name="pgm_path" value="$(find turtle)/maps/gazebo_map.pgm" />
+    <param name="yaml_path" value="$(find turtle)/maps/gazebo_map.yaml" />
+<node 
+    name="spawn_obstacles_node" 
+    pkg="random_map_generator" 
+    type="spawn_obstacles.py" 
+    output="screen"
+    launch-prefix="bash -c 'sleep 3; $0 $@'" >
+
+     
+  </node>
+
+  <!-- 可选：设置参数 -->
+  <rosparam>
+    obstacle_count: 20     <!-- 障碍物数量 -->
+    x_range: [-10, 10]    <!-- X轴生成范围 -->
+    y_range: [-10, 10]    <!-- Y轴生成范围 -->
+  </rosparam>
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro" />
+
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf"  args="-urdf -model turtlebot3_$(arg model) -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+        respawn="false" output="screen">
+    <remap from="/joint_states" to="/gazebo/joint_states"/>
+  </node>
+  <node pkg="map_server" type="map_server" name="map_server" 
+    args="$(find turtle)/maps/gazebo_map.yaml" 
+    launch-prefix="bash -c 'sleep 10; $0 $@'"  /> 
+  <arg name="map_file" default="$(find turtle)/maps/gazebo_map.yaml"/>
+  <node pkg="turtle" name="planner" type="planner.py" args="$(arg map_file)" output="screen" />
+  <node pkg="turtle" name="controller" type="controller.py" output="screen" />
+  <!-- <node name="gazebo_to_tf" pkg="turtle" type="gazebo_to_tf.py" output="screen"/> -->
+   <node name="rviz" pkg="rviz" type="rviz" 
+          args="-d $(find random_map_generator)/final.rviz" />
+ 
+</launch>
